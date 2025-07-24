@@ -39,6 +39,10 @@ def add_book():
     data = request.json
     title = data.get("title")
     author = data.get("author")
+    if not title or not author:
+        # 欄位缺失時回傳 400
+        return jsonify({"error": "title 與 author 為必填"}), 400
+
     conn = sqlite3.connect(DB_FILE)
     c = conn.cursor()
     c.execute("INSERT INTO books (title, author) VALUES (?, ?)", (title, author))
@@ -47,11 +51,15 @@ def add_book():
     conn.close()
     return jsonify({"id": new_id, "title": title, "author": author}), 201
 
+
 @app.route("/books/<int:book_id>", methods=["PUT"])
 def update_book(book_id):
     data = request.json
     title = data.get("title")
     author = data.get("author")
+    if not title or not author:
+        return jsonify({"error": "title 與 author 為必填"}), 400
+
     conn = sqlite3.connect(DB_FILE)
     c = conn.cursor()
     c.execute("UPDATE books SET title = ?, author = ? WHERE id = ?", (title, author, book_id))
@@ -62,6 +70,7 @@ def update_book(book_id):
         return jsonify(get_book_by_id(book_id))
     else:
         return ("", 404)
+
 
 @app.route("/books/<int:book_id>", methods=["DELETE"])
 def delete_book(book_id):
