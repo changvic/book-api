@@ -27,3 +27,7 @@ curl -X POST -H "Content-Type: application/json" -d '{"title":"新書", "author"
 更新 V1.2
 
 - Flask + SQLite 迷你書籍 API
+
+更新 V1.3
+
+- 增加驗證欄位
