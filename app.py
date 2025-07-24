@@ -1,67 +1,80 @@
 from flask import Flask, jsonify, request
-import json
-import os
+import sqlite3
 
 app = Flask(__name__)
-DATA_FILE = 'books.json'
 
-# 讀取資料
-def load_books():
-    if not os.path.exists(DATA_FILE):
-        return []
-    with open(DATA_FILE, 'r', encoding='utf-8') as f:
-        return json.load(f)
+DB_FILE = 'books.db'
 
-# 寫入資料
-def save_books(books):
-    with open(DATA_FILE, 'w', encoding='utf-8') as f:
-        json.dump(books, f, ensure_ascii=False, indent=2)
+# 共用：查詢所有書
+def get_all_books():
+    conn = sqlite3.connect(DB_FILE)
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+    c.execute("SELECT * FROM books")
+    books = [dict(row) for row in c.fetchall()]
+    conn.close()
+    return books
+
+# 共用：查詢單本
+def get_book_by_id(book_id):
+    conn = sqlite3.connect(DB_FILE)
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+    c.execute("SELECT * FROM books WHERE id = ?", (book_id,))
+    row = c.fetchone()
+    conn.close()
+    return dict(row) if row else None
 
 @app.route("/books", methods=["GET"])
 def get_books():
-    books = load_books()
-    return jsonify(books)
+    return jsonify(get_all_books())
 
 @app.route("/books/<int:book_id>", methods=["GET"])
 def get_book(book_id):
-    books = load_books()
-    book = next((b for b in books if b["id"] == book_id), None)
+    book = get_book_by_id(book_id)
     return jsonify(book) if book else ("", 404)
 
 @app.route("/books", methods=["POST"])
 def add_book():
-    books = load_books()
     data = request.json
-    new_book = {
-        "id": books[-1]["id"]+1 if books else 1,
-        "title": data["title"],
-        "author": data["author"]
-    }
-    books.append(new_book)
-    save_books(books)
-    return jsonify(new_book), 201
+    title = data.get("title")
+    author = data.get("author")
+    conn = sqlite3.connect(DB_FILE)
+    c = conn.cursor()
+    c.execute("INSERT INTO books (title, author) VALUES (?, ?)", (title, author))
+    conn.commit()
+    new_id = c.lastrowid
+    conn.close()
+    return jsonify({"id": new_id, "title": title, "author": author}), 201
 
 @app.route("/books/<int:book_id>", methods=["PUT"])
 def update_book(book_id):
-    books = load_books()
     data = request.json
-    for book in books:
-        if book["id"] == book_id:
-            book["title"] = data.get("title", book["title"])
-            book["author"] = data.get("author", book["author"])
-            save_books(books)
-            return jsonify(book)
-    return ("", 404)
+    title = data.get("title")
+    author = data.get("author")
+    conn = sqlite3.connect(DB_FILE)
+    c = conn.cursor()
+    c.execute("UPDATE books SET title = ?, author = ? WHERE id = ?", (title, author, book_id))
+    conn.commit()
+    updated = c.rowcount
+    conn.close()
+    if updated:
+        return jsonify(get_book_by_id(book_id))
+    else:
+        return ("", 404)
 
 @app.route("/books/<int:book_id>", methods=["DELETE"])
 def delete_book(book_id):
-    books = load_books()
-    idx = next((i for i, b in enumerate(books) if b["id"] == book_id), None)
-    if idx is not None:
-        deleted = books.pop(idx)
-        save_books(books)
-        return jsonify(deleted)
-    return ("", 404)
+    conn = sqlite3.connect(DB_FILE)
+    c = conn.cursor()
+    c.execute("DELETE FROM books WHERE id = ?", (book_id,))
+    conn.commit()
+    deleted = c.rowcount
+    conn.close()
+    if deleted:
+        return jsonify({"id": book_id, "deleted": True})
+    else:
+        return ("", 404)
 
 if __name__ == "__main__":
     app.run(debug=True)

@@ -19,3 +19,11 @@ python app.py
 
 curl http://127.0.0.1:5000/books
 curl -X POST -H "Content-Type: application/json" -d '{"title":"新書", "author":"小明"}' http://127.0.0.1:5000/books
+
+更新 V1.1
+
+- 新增 books.jon，用 JSON 檔存書籍資料
+
+更新 V1.2
+
+- Flask + SQLite 迷你書籍 API
