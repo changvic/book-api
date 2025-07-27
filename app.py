@@ -1,7 +1,9 @@
 from flask import Flask, jsonify, request
+from flask_cors import CORS
 import sqlite3
 
 app = Flask(__name__)
+CORS(app)
 
 DB_FILE = 'books.db'
 
@@ -32,7 +34,7 @@ def get_books():
 @app.route("/books/<int:book_id>", methods=["GET"])
 def get_book(book_id):
     book = get_book_by_id(book_id)
-    return jsonify(book) if book else ("", 404)
+    return jsonify({"error": "找不到書"}), 404
 
 @app.route("/books", methods=["POST"])
 def add_book():
@@ -41,8 +43,8 @@ def add_book():
     author = data.get("author")
     if not title or not author:
         # 欄位缺失時回傳 400
-        return jsonify({"error": "title 與 author 為必填"}), 400
-
+        return jsonify({"error": "必須至少給 title 或 author"}), 400
+    # 之後 UPDATE 寫法也要跟著調整
     conn = sqlite3.connect(DB_FILE)
     c = conn.cursor()
     c.execute("INSERT INTO books (title, author) VALUES (?, ?)", (title, author))
